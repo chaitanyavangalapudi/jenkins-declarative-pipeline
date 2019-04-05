@@ -2,7 +2,7 @@
 
 Build the dist folder using ng build, deploy to remote box using nginx. Make sure deployment user has sudo access to stop and start nginx process. Nginx is configured with root location as absolute path to dist folder.
 
-Referencs:
+References:
 
 * http://www.codingpedia.org/ama/how-to-configure-nginx-in-production-to-serve-angular-app-and-reverse-proxy-nodejs
 * https://medium.com/@balramchavan/deploy-angular-application-in-nginx-server-on-digitalocean-ubuntu-droplet-28380524811e
