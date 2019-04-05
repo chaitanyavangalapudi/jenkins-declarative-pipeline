@@ -93,7 +93,28 @@ pipeline {
             }
             steps {
       // Sample step to demonstrate how to push the POM and jar artifacts to the Nexus OSS
-                nexusPublisher nexusInstanceId: 'NexusServerInst', nexusRepositoryId: 'my-java-repo', packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', filePath: 'target/springbootdemo-0.0.1-SNAPSHOT.jar'],[classifier: '', extension: 'pom', filePath: 'pom.xml']], mavenCoordinate: [artifactId: 'spring-boot-demo', groupId: 'com.iggi.example', packaging: 'jar', version: '1.0.0']]], tagName: ''
+                nexusPublisher nexusInstanceId: 'NexusServerInst', nexusRepositoryId: 'my-java-repo',
+                packages: [
+                 [$class: 'MavenPackage', 
+                   mavenAssetList: [
+                     [
+                       classifier: '', 
+                       extension: '', 
+                       filePath: 'target/springbootdemo-0.0.1-SNAPSHOT.jar'
+                     ],
+                     [
+                       classifier: '',
+                       extension: 'pom',
+                       filePath: 'pom.xml'
+                     ]
+                   ], 
+                   mavenCoordinate: [
+                      artifactId: 'spring-boot-demo', 
+                      groupId: 'com.iggi.example', 
+                      packaging: 'jar', version: '1.0.0'
+                   ]
+                  ]
+                 ], tagName: ''
             }
         }
         stage('Deployment Prompt') {
