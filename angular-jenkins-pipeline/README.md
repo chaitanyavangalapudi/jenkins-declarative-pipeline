@@ -1,3 +1,14 @@
+# Jenkins pipeline for Angular Project
+
+Build the dist folder using ng build, deploy to remote box using nginx. Make sure deployment user has sudo access to stop and start nginx process. Nginx is configured with root location as absolute path to dist folder.
+
+Referencs:
+
+* http://www.codingpedia.org/ama/how-to-configure-nginx-in-production-to-serve-angular-app-and-reverse-proxy-nodejs
+* https://medium.com/@balramchavan/deploy-angular-application-in-nginx-server-on-digitalocean-ubuntu-droplet-28380524811e
+* https://medium.com/@icanhazstring/how-to-properly-get-angular-and-nginx-working-together-for-development-3e5d158734bf
+* https://stackoverflow.com/questions/39612339/how-can-i-deploy-my-angular-2-typescript-webpack-app
+
 # Angular and TypeScript Hello World Project
 
 The Hello World project is an Angular 2+ starter project that has the npm modules, 
