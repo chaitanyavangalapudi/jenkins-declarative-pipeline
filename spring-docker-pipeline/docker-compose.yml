@@ -1,0 +1,13 @@
+version: '3'
+
+services: 
+  spring-docker-app:
+    image: privatedocker.iggi.com:8081/spring-boot-demo
+    ports:
+      - 8011:8080
+    environment:
+      - DATABASE_HOST=mysql.iggi.om
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=root
+      - DATABASE_NAME=test
+      - DATABASE_PORT=3306

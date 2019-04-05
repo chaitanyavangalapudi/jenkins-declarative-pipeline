@@ -1,0 +1,164 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_JAR = './target/springbootdemo-0.0.1-SNAPSHOT.jar'
+    }
+    tools {
+    // Use the name of preconfigured maven instance in Jenkins Global Tool Configuration
+        maven 'Maven3.6'
+    }
+
+    options {
+      buildDiscarder(logRotator(numToKeepStr: '15', daysToKeepStr: '15',  artifactNumToKeepStr: '5', artifactDaysToKeepStr: '15'))
+      //Name of preconfigured connection to GitLab
+      gitLabConnection('GitlabConnection')
+      ansiColor('xterm')
+    }
+    triggers {
+        gitlab(
+          triggerOnPush: true,
+          triggerOnMergeRequest: true,
+          triggerOpenMergeRequestOnPush: "never",
+          triggerOnNoteRequest: true,
+          noteRegex: "Jenkins please retry a build",
+          skipWorkInProgressMergeRequest: true,
+          ciSkip: false,
+          setBuildDescription: true,
+          addNoteOnMergeRequest: true,
+          addCiMessage: true,
+          addVoteOnMergeRequest: true,
+          acceptMergeRequestOnSuccess: false,
+          //pendingBuildName: "Jenkins",
+          cancelPendingBuildsOnUpdate: false,
+          branchFilterType: 'All')
+    }
+
+    stages {
+        stage('Checkout Code from SCM') {
+            steps {
+              // Valid Jenkins build statuses are : running, pending, success, failed, canceled, skipped
+              updateGitlabCommitStatus name: 'build', state: 'running'
+              emailext (
+                to: "userfname.lastname@iggi.com",
+                subject: "BUILD STARTED: For Job '${env.JOB_NAME} # ${env.BUILD_NUMBER}'",
+                body: """<p>STARTED: Job '${env.JOB_NAME} Build # ${env.BUILD_NUMBER}':</p>
+                  <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} # ${env.BUILD_NUMBER}</a>&QUOT;</p>""",
+                recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']]
+              )
+              checkout scm
+            }
+        }
+        stage('Build') {
+            steps {
+               sh '''
+                  mvn clean package
+               '''
+            }
+        }
+        stage('Run Tests, Static code analysis') {
+          parallel {
+           stage('Run Unit Tests') {
+              steps {
+                sh '''
+                   mvn test
+                '''
+              }
+              post {
+                always {
+                    junit '**/target/surefire-reports/TEST-*.xml'
+                }
+              }
+            }
+            stage('Run Integration Tests') {
+              steps {
+                   echo "Place Holder for Integration Test"
+              }
+            }
+            stage('Perform Static Code Analysis') {
+              steps {
+                  echo "Place Holder for Static code analysis"
+              }
+            }
+          }
+        }
+        stage('Create Build tag') {
+            steps {
+                  echo "Place Holder for Build tagging for Nexus OSS3 Pro, since Nexus3 OSS doesnt support tagging"
+            }
+        }
+        stage('Publish Artifact to Nexus') {
+            when {
+              expression { branch 'release' }
+            }
+            steps {
+      // Sample step to demonstrate how to push the POM and jar artifacts to the Nexus OSS
+                nexusPublisher nexusInstanceId: 'NexusServerInst', nexusRepositoryId: 'my-java-repo', packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', filePath: 'target/springbootdemo-0.0.1-SNAPSHOT.jar'],[classifier: '', extension: 'pom', filePath: 'pom.xml']], mavenCoordinate: [artifactId: 'spring-boot-demo', groupId: 'com.iggi.example', packaging: 'jar', version: '1.0.0']]], tagName: ''
+            }
+        }
+        stage('Deployment Prompt') {
+            when {
+               branch 'release'
+            }
+            steps {
+                timeout(time: 6, unit:'HOURS') {
+                    input 'Proceed with Application Deployment ?'
+                }
+            }
+        }
+        stage('Deploy Application') {
+            when {
+               branch 'release'
+            }
+            steps {
+               script {
+                  def remote = [:]
+                  def fileName = "${APP_JAR}"
+                  remote.name = "deployment.iggi.com"
+                  remote.host = "deployment.iggi.com"
+                  remote.allowAnyHosts = true
+                  withCredentials([sshUserPrivateKey(credentialsId: 'JenkinsPrivateKey', keyFileVariable: 'identity', passphraseVariable: 'passphrase', usernameVariable: 'userName')]) {
+                      remote.user = userName
+                      remote.passphrase = passphrase
+                      remote.identityFile = identity
+                   //preDeploy.sh - shell script with any activities to be taken care of before deployment
+                      sshCommand remote: remote, command: './preDeploy.sh', failOnError: 'true'
+                   //Copy the Jar file to remote location
+                      sshPut remote: remote, from: fileName, into: '/app/springboot'
+                   //deploy.sh - script to run the spring boot jar
+                      sshCommand remote: remote, command: './deploy.sh', failOnError: 'true'
+                  }
+               }
+            }
+      }
+    }
+    post {
+       failure {
+         emailext (
+            to: "userfname.lastname@iggi.com",
+            subject: "Build FAILED: Job '${env.JOB_NAME} Build # ${env.BUILD_NUMBER}'",
+            from: "noreply@iggi.com",
+            body: """<p>Build FAILED: Job '${env.JOB_NAME} Build # ${env.BUILD_NUMBER}':</p>
+              <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.BUILD_URL}</a>&QUOT;</p>
+              <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>&QUOT;</p>""",
+            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+          )
+          updateGitlabCommitStatus name: 'build', state: 'failed'
+       }
+       success {
+          emailext (
+            to: "userfname.lastname@iggi.com",
+            subject: "Build SUCCESSFUL: Job '${env.JOB_NAME} Build # ${env.BUILD_NUMBER}'",
+            from: "noreply@iggi.com",
+            body: """<p>Build SUCCESSFUL: Job '${env.JOB_NAME} Build # ${env.BUILD_NUMBER}':</p>
+              <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.BUILD_URL}</a>&QUOT;</p>
+              <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>&QUOT;</p>""",
+            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+          )
+          updateGitlabCommitStatus name: 'build', state: 'success'
+       }
+       always {
+          cleanWs()
+       }
+    }
+}
